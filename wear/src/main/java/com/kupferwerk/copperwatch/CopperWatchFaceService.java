@@ -4,13 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.Resources;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.Rect;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -34,7 +29,7 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       static final long INTERACTIVE_UPDATE_RATE_MS = 1000 * 1;
       static final long AMBIENT_UPDATE_RATE_MS = 1000 * 60;
       // a time object
-      Time mTime;
+      Time time;
 
       // device features
       boolean mLowBitAmbient;
@@ -42,11 +37,8 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       long updateRate;
 
       // graphic objects
-      Bitmap background;
-      Bitmap mBackgroundScaledBitmap;
-      Paint hourPaint;
-      Paint minutePaint;
-      Paint fillPaint;
+
+      private Drawer drawer;
 
       boolean mRegisteredTimeZoneReceiver;
 
@@ -82,8 +74,8 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
          @Override
          public void onReceive(Context context, Intent intent) {
-            mTime.clear(intent.getStringExtra("time-zone"));
-            mTime.setToNow();
+            time.clear(intent.getStringExtra("time-zone"));
+            time.setToNow();
          }
       };
 
@@ -96,31 +88,12 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
                .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                .setShowSystemUiTime(false).build());
 
-         // load the background image
-         Resources resources = CopperWatchFaceService.this.getResources();
-         Drawable backgroundDrawable = resources.getDrawable(R.drawable.watch_bg_round);
-         background = ((BitmapDrawable) backgroundDrawable).getBitmap();
-
-         // create graphic styles
-         hourPaint = new Paint();
-         hourPaint.setARGB(255, 33, 33, 33);
-         hourPaint.setStrokeWidth(1.5f);
-         hourPaint.setAntiAlias(true);
-         hourPaint.setStyle(Paint.Style.STROKE);
-
-         minutePaint = new Paint();
-         minutePaint.setARGB(255, 255, 128, 0);
-         minutePaint.setStrokeWidth(1.5f);
-         minutePaint.setAntiAlias(true);
-         minutePaint.setStyle(Paint.Style.STROKE);
-
-         fillPaint = new Paint();
-         fillPaint.setARGB(255, 255, 128, 0);
-         fillPaint.setAntiAlias(true);
-         fillPaint.setStyle(Paint.Style.FILL);
+         updateRate = INTERACTIVE_UPDATE_RATE_MS;
+         drawer = new CopperAnalogDrawer();
+         drawer.init(getBaseContext());
 
          // allocate an object to hold the time
-         mTime = new Time();
+         time = new Time();
       }
 
       @Override
@@ -142,17 +115,10 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       public void onAmbientModeChanged(boolean inAmbientMode) {
          super.onAmbientModeChanged(inAmbientMode);
             /* the wearable switched between modes */
+         drawer.updateAmbientMode(inAmbientMode);
          if (inAmbientMode) {
-            minutePaint.setARGB(255, 255, 255, 255);
-            minutePaint.setAntiAlias(false);
-            fillPaint.setARGB(255, 255, 255, 255);
-            fillPaint.setAntiAlias(false);
             updateRate = AMBIENT_UPDATE_RATE_MS;
          } else {
-            minutePaint.setARGB(255, 255, 128, 0);
-            minutePaint.setAntiAlias(true);
-            fillPaint.setARGB(255, 255, 128, 0);
-            fillPaint.setAntiAlias(true);
             updateRate = INTERACTIVE_UPDATE_RATE_MS;
          }
          invalidate();
@@ -162,86 +128,17 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       @Override
       public void onDraw(Canvas canvas, Rect bounds) {
             /* draw your watch face */
-         mTime.setToNow();
+         time.setToNow();
 
-         int width = bounds.width();
-         int height = bounds.height();
+         drawer.drawBackground(canvas, bounds);
+         // TODO draw date
+         drawer.drawHour(canvas, time);
+         drawer.drawMinutes(canvas, time);
 
-         // Draw the background, scaled to fit.
-         if (mBackgroundScaledBitmap == null || mBackgroundScaledBitmap.getWidth() != width ||
-               mBackgroundScaledBitmap.getHeight() != height) {
-            mBackgroundScaledBitmap =
-                  Bitmap.createScaledBitmap(background, width, height, true /* filter */);
-         }
-         canvas.drawBitmap(mBackgroundScaledBitmap, 0, 0, null);
+         // if (!isInAmbientMode()) {
+         //    DateFormatter.getInstance(getApplicationContext()).setDate(canvas, centerX);
+         // }
 
-         // Find the center. Ignore the window insets so that, on round watches
-         // with a "chin", the watch face is centered on the entire screen, not
-         // just the usable portion.
-         float centerX = width / 2f;
-         float centerY = height / 2f;
-         if (!isInAmbientMode()) {
-            DateFormatter.getInstance(getApplicationContext()).setDate(canvas, centerX);
-         }
-
-         // Compute rotations and lengths for the clock hands.
-         //         float secRot = mTime.second / 30f * (float) Math.PI;
-         int hour = mTime.hour;
-         int minutes = mTime.minute;
-         int seconds = mTime.second;
-
-         if (hour > 11) {
-            hour -= 12;
-         }
-         float degrees = ((hour * 60.f) + minutes) / 2f;
-
-         canvas.save();
-         canvas.rotate(degrees, centerX, centerY);
-         drawHours(canvas, centerX);
-         canvas.restore();
-
-         canvas.save();
-         drawMinutes(canvas, centerX, centerY, minutes, seconds);
-         canvas.restore();
-      }
-
-      private void drawHours(Canvas canvas, float centerX) {
-         fillPaint.setAlpha(255);
-         canvas.drawRoundRect(centerX - 10f, 0, centerX + 10f, 24, 6, 6, fillPaint);
-         canvas.drawRoundRect(centerX - 10f, 0, centerX + 10f, 24, 6, 6, hourPaint);
-      }
-
-      private void drawMinutes(Canvas canvas, float centerX, float centerY, int minutes,
-            int seconds) {
-         float degrees = ((minutes * 60) + seconds) / 10;
-         canvas.rotate(degrees, centerX, centerY);
-         for (int i = 1; i <= 6; ++i) {
-            drawSeconds(canvas, i, seconds, centerX - 7.5f, 2.5f, centerX + 7.5f, 12.5f);
-         }
-      }
-
-      private float getAlpha(int index, int seconds) {
-         if (seconds < (index - 1) * 10) {
-            return 0.0f;
-         }
-         if (seconds >= index * 10) {
-            return 1.0f;
-         }
-         return ((float) seconds - index * 10) / 10.f;
-      }
-
-      private void drawSeconds(Canvas canvas, int index, int seconds, float left, float top,
-            float right, float bottom) {
-
-         float offset = (index - 1) * (bottom + 4);
-         if (!isInAmbientMode()) {
-            // do not draw seconds in ambient mode
-            fillPaint.setAlpha((int) (getAlpha(index, seconds) * 255f));
-            canvas.drawRoundRect(left, top + offset, right, bottom + offset, 2, 2, fillPaint);
-            canvas.drawRoundRect(left - 1.5f, top + offset - 1.5f, right + 1.5f,
-                  bottom + offset + 1.5f, 2, 2, hourPaint);
-         }
-         canvas.drawRoundRect(left, top + offset, right, bottom + offset, 2, 2, minutePaint);
       }
 
       @Override
@@ -252,8 +149,8 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
             registerReceiver();
 
             // Update time zone in case it changed while we weren't visible.
-            mTime.clear(TimeZone.getDefault().getID());
-            mTime.setToNow();
+            time.clear(TimeZone.getDefault().getID());
+            time.setToNow();
          } else {
             unregisterReceiver();
          }
