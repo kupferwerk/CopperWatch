@@ -32,12 +32,14 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
 
       static final int MSG_UPDATE_TIME = 0;
       static final long INTERACTIVE_UPDATE_RATE_MS = 1000 * 1;
+      static final long AMBIENT_UPDATE_RATE_MS = 1000 * 60;
       // a time object
       Time mTime;
 
       // device features
       boolean mLowBitAmbient;
       boolean mBurnInProtection;
+      long updateRate;
 
       // graphic objects
       Bitmap background;
@@ -57,8 +59,7 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
                   invalidate();
                   if (shouldTimerBeRunning()) {
                      long timeMs = System.currentTimeMillis();
-                     long delayMs =
-                           INTERACTIVE_UPDATE_RATE_MS - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
+                     long delayMs = updateRate - (timeMs % updateRate);
                      updateHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
                   }
                   break;
@@ -141,10 +142,18 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       public void onAmbientModeChanged(boolean inAmbientMode) {
          super.onAmbientModeChanged(inAmbientMode);
             /* the wearable switched between modes */
-         if (mLowBitAmbient) {
-            boolean antiAlias = !inAmbientMode;
-            hourPaint.setAntiAlias(antiAlias);
-            minutePaint.setAntiAlias(antiAlias);
+         if (inAmbientMode) {
+            minutePaint.setARGB(255, 255, 255, 255);
+            minutePaint.setAntiAlias(false);
+            fillPaint.setARGB(255, 255, 255, 255);
+            fillPaint.setAntiAlias(false);
+            updateRate = AMBIENT_UPDATE_RATE_MS;
+         } else {
+            minutePaint.setARGB(255, 255, 128, 0);
+            minutePaint.setAntiAlias(true);
+            fillPaint.setARGB(255, 255, 128, 0);
+            fillPaint.setAntiAlias(true);
+            updateRate = INTERACTIVE_UPDATE_RATE_MS;
          }
          invalidate();
          updateTimer();
@@ -171,21 +180,15 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
          // just the usable portion.
          float centerX = width / 2f;
          float centerY = height / 2f;
-         DateFormatter.getInstance(getApplicationContext()).setDate(canvas, centerX);
+         if (!isInAmbientMode()) {
+            DateFormatter.getInstance(getApplicationContext()).setDate(canvas, centerX);
+         }
 
          // Compute rotations and lengths for the clock hands.
          //         float secRot = mTime.second / 30f * (float) Math.PI;
          int hour = mTime.hour;
          int minutes = mTime.minute;
          int seconds = mTime.second;
-
-         // Only draw the second hand in interactive mode.
-         if (!isInAmbientMode()) {
-            //            float secX = (float) Math.sin(secRot) * secLength;
-            //            float secY = (float) -Math.cos(secRot) * secLength;
-            //            canvas.drawLine(centerX, centerY, centerX + secX, centerY +
-            //                  secY, mSecondPaint);
-         }
 
          if (hour > 11) {
             hour -= 12;
@@ -194,14 +197,18 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
 
          canvas.save();
          canvas.rotate(degrees, centerX, centerY);
-         fillPaint.setAlpha(255);
-         canvas.drawRoundRect(centerX - 10f, -4f, centerX + 10f, 30, 6, 6, fillPaint);
-         canvas.drawRoundRect(centerX - 10f, -4f, centerX + 10f, 30, 6, 6, hourPaint);
+         drawHours(canvas, centerX);
          canvas.restore();
 
          canvas.save();
          drawMinutes(canvas, centerX, centerY, minutes, seconds);
          canvas.restore();
+      }
+
+      private void drawHours(Canvas canvas, float centerX) {
+         fillPaint.setAlpha(255);
+         canvas.drawRoundRect(centerX - 10f, 0, centerX + 10f, 24, 6, 6, fillPaint);
+         canvas.drawRoundRect(centerX - 10f, 0, centerX + 10f, 24, 6, 6, hourPaint);
       }
 
       private void drawMinutes(Canvas canvas, float centerX, float centerY, int minutes,
@@ -213,20 +220,27 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
          }
       }
 
+      private float getAlpha(int index, int seconds) {
+         if (seconds < (index - 1) * 10) {
+            return 0.0f;
+         }
+         if (seconds >= index * 10) {
+            return 1.0f;
+         }
+         return ((float) seconds - index * 10) / 10.f;
+      }
+
       private void drawSeconds(Canvas canvas, int index, int seconds, float left, float top,
             float right, float bottom) {
 
-         float alpha;
-         if (index <= seconds / 10) {
-            alpha = 1.f;
-         } else if (index > (seconds / 10) + 1) {
-            alpha = 0.f;
-         } else {
-            alpha = (float) seconds / (float) (index * 10);
-         }
-         fillPaint.setAlpha((int) (alpha * 255f));
          float offset = (index - 1) * (bottom + 4);
-         canvas.drawRoundRect(left, top + offset, right, bottom + offset, 2, 2, fillPaint);
+         if (!isInAmbientMode()) {
+            // do not draw seconds in ambient mode
+            fillPaint.setAlpha((int) (getAlpha(index, seconds) * 255f));
+            canvas.drawRoundRect(left, top + offset, right, bottom + offset, 2, 2, fillPaint);
+            canvas.drawRoundRect(left - 1.5f, top + offset - 1.5f, right + 1.5f,
+                  bottom + offset + 1.5f, 2, 2, hourPaint);
+         }
          canvas.drawRoundRect(left, top + offset, right, bottom + offset, 2, 2, minutePaint);
       }
 
