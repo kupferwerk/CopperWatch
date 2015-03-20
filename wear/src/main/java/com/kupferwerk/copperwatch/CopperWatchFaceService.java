@@ -128,8 +128,7 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       @Override
       public void onDraw(Canvas canvas, Rect bounds) {
             /* draw your watch face */
-                  time.setToNow();
-         time.set(34, 34, 4, 9, 3, 2015);
+         time.setToNow();
 
          drawer.drawBackground(canvas, bounds);
          drawer.drawHour(canvas, time);
