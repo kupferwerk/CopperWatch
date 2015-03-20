@@ -28,7 +28,7 @@ public interface Drawer {
 
    void drawSeconds(Canvas canvas, Time time);
 
-   void drawAdditionalText(Canvas canvas);
+   void drawAdditionalText(Canvas canvas, Time time);
 
    void updateAmbientMode(boolean inAmbientMode);
 }

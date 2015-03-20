@@ -14,8 +14,7 @@ import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.Time;
 import android.view.SurfaceHolder;
 
-import com.kupferwerk.copperwatch.analog.CopperAnalogDrawerV1;
-import com.kupferwerk.copperwatch.analog.CopperAnalogDrawerV2;
+import com.kupferwerk.copperwatch.analog.CopperAnalogDrawer;
 
 import java.util.TimeZone;
 
@@ -92,7 +91,7 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
                .setShowSystemUiTime(false).build());
 
          updateRate = INTERACTIVE_UPDATE_RATE_MS;
-         drawer = new CopperAnalogDrawerV1();
+         drawer = new CopperAnalogDrawer();
          drawer.init(getBaseContext());
 
          // allocate an object to hold the time
@@ -134,8 +133,8 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
          time.setToNow();
 
          drawer.drawBackground(canvas, bounds);
-         drawer.drawAdditionalText(canvas);
          drawer.drawHour(canvas, time);
+         drawer.drawAdditionalText(canvas, time);
          drawer.drawMinutes(canvas, time);
       }
 

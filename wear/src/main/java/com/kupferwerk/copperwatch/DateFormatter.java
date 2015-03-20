@@ -4,17 +4,14 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import android.text.format.Time;
 
 public class DateFormatter {
 
+   public static final String FONTS_CONDUIT = "fonts/ConduitITCStd.otf";
    public static DateFormatter instance;
 
    private Paint paint;
-   private SimpleDateFormat dateFormat;
-   private SimpleDateFormat weekdayFormat;
 
    public static DateFormatter getInstance(Context context) {
       if (instance == null) {
@@ -25,27 +22,21 @@ public class DateFormatter {
 
    private DateFormatter(Context context) {
       paint = new Paint();
-      paint.setTextSize(32);
       paint.setARGB(Drawer.ARGB.OPAQUE, Drawer.ARGB.GREY_LIGHT[0], Drawer.ARGB.GREY_LIGHT[1],
             Drawer.ARGB.GREY_LIGHT[2]);
       paint.setAntiAlias(true);
-      Typeface kwConduit = Typeface.createFromAsset(context.getApplicationContext().getAssets(),
-            "fonts/ConduitITCStd.otf");
-      paint.setTypeface(kwConduit);
+      paint.setTypeface(
+            Typeface.createFromAsset(context.getApplicationContext().getAssets(), FONTS_CONDUIT));
       paint.setTextAlign(Paint.Align.CENTER);
-      dateFormat = new SimpleDateFormat("dd. MMM");
-      weekdayFormat = new SimpleDateFormat("EEEE");
    }
 
-   public void setDate(Canvas canvas, float centerX) {
-      Date now = new Date();
+   public void setDate(Canvas canvas, float centerX, Time time) {
       paint.setTextSize(28);
-      canvas.drawText(dateFormat.format(now), centerX, 90, paint);
+      canvas.drawText(time.format("%d. %b"), centerX, 90, paint);
    }
 
-   public void setWeekday(Canvas canvas, float centerX) {
-      Date now = new Date();
+   public void setWeekday(Canvas canvas, float centerX, Time time) {
       paint.setTextSize(22);
-      canvas.drawText(weekdayFormat.format(now), centerX, 118, paint);
+      canvas.drawText(time.format("%A"), centerX, 118, paint);
    }
 }
