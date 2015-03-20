@@ -1,6 +1,6 @@
 # CopperWatch
 
-Kupferwerk produly presents CopperWatch
+Kupferwerk proudly presents CopperWatch
 
 # Round
 ![](https://github.com/kupferwerk/CopperWatch/blob/master/wear/src/main/res/drawable/round_copper.png)
