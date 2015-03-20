@@ -38,8 +38,6 @@ public class CopperWatchFaceService extends CanvasWatchFaceService {
       boolean mBurnInProtection;
       long updateRate;
 
-      // graphic objects
-
       private Drawer drawer;
 
       boolean mRegisteredTimeZoneReceiver;
